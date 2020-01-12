@@ -19,6 +19,7 @@ from voting.models import Voting, Candidate, CandidatesGroup
 from voting.views import handle_uploaded_file
 import unittest
 from selenium import webdriver
+from django.urls import reverse
 
 class VotingTestCase(BaseTestCase):
 
@@ -78,74 +79,74 @@ class VotingTestCase(BaseTestCase):
         user.save()
         return user
 
-    def store_votes(self, v):
-        voters = list(Census.objects.filter(voting_id=v.id))
-        voter = voters.pop()
+    # def store_votes(self, v):
+    #     voters = list(Census.objects.filter(voting_id=v.id))
+    #     voter = voters.pop()
 
-        clear = {}
-        for opt in v.question.options.all():
-            clear[opt.number] = 0
-            for i in range(random.randint(0, 5)):
-                a, b = self.encrypt_msg(opt.number, v)
-                data = {
-                    'voting': v.id,
-                    'voter': voter.voter_id,
-                    'vote': { 'a': a, 'b': b },
-                }
-                clear[opt.number] += 1
-                user = self.get_or_create_user(voter.voter_id)
-                self.login(user=user.username)
-                voter = voters.pop()
-                mods.post('store', json=data)
-        return clear
+    #     clear = {}
+    #     for opt in v.question.options.all():
+    #         clear[opt.number] = 0
+    #         for i in range(random.randint(0, 5)):
+    #             a, b = self.encrypt_msg(opt.number, v)
+    #             data = {
+    #                 'voting': v.id,
+    #                 'voter': voter.voter_id,
+    #                 'vote': { 'a': a, 'b': b },
+    #             }
+    #             clear[opt.number] += 1
+    #             user = self.get_or_create_user(voter.voter_id)
+    #             self.login(user=user.username)
+    #             voter = voters.pop()
+    #             mods.post('store', json=data)
+    #     return clear
 
-    def test_complete_voting(self):
-        v = self.create_voting()
-        self.create_voters(v)
+    # def test_complete_voting(self):
+    #     v = self.create_voting()
+    #     self.create_voters(v)
 
-        v.create_pubkey()
-        v.start_date = timezone.now()
-        v.save()
+    #     v.create_pubkey()
+    #     v.start_date = timezone.now()
+    #     v.save()
 
-        clear = self.store_votes(v)
+    #     clear = self.store_votes(v)
 
-        self.login()  # set token
-        v.tally_votes(self.token)
+    #     self.login()  # set token
+    #     v.tally_votes(self.token)
 
-        tally = v.tally
-        tally.sort()
-        tally = {k: len(list(x)) for k, x in itertools.groupby(tally)}
+    #     tally = v.tally
+    #     tally.sort()
+    #     tally = {k: len(list(x)) for k, x in itertools.groupby(tally)}
 
-        for q in v.question.options.all():
-            self.assertEqual(tally.get(q.number, 0), clear.get(q.number, 0))
+    #     for q in v.question.options.all():
+    #         self.assertEqual(tally.get(q.number, 0), clear.get(q.number, 0))
 
-        for q in v.postproc:
-            self.assertEqual(tally.get(q["number"], 0), q["votes"])
+    #     for q in v.postproc:
+    #         self.assertEqual(tally.get(q["number"], 0), q["votes"])
 
-    def test_create_voting_from_api(self):
-        data = {'name': 'Example'}
-        response = self.client.post('/voting/', data, format='json')
-        self.assertEqual(response.status_code, 401)
+    # def test_create_voting_from_api(self):
+    #     data = {'name': 'Example'}
+    #     response = self.client.post('/voting/', data, format='json')
+    #     self.assertEqual(response.status_code, 401)
 
-        # login with user no admin
-        self.login(user='noadmin')
-        response = mods.post('voting', params=data, response=True)
-        self.assertEqual(response.status_code, 403)
+    #     # login with user no admin
+    #     self.login(user='noadmin')
+    #     response = mods.post('voting', params=data, response=True)
+    #     self.assertEqual(response.status_code, 403)
 
-        # login with user admin
-        self.login()
-        response = mods.post('voting', params=data, response=True)
-        self.assertEqual(response.status_code, 400)
+    #     # login with user admin
+    #     self.login()
+    #     response = mods.post('voting', params=data, response=True)
+    #     self.assertEqual(response.status_code, 400)
 
-        data = {
-            'name': 'Example',
-            'desc': 'Description example',
-            'question': 'I want a ',
-            'question_opt': ['cat', 'dog', 'horse']
-        }
+    #     data = {
+    #         'name': 'Example',
+    #         'desc': 'Description example',
+    #         'question': 'I want a ',
+    #         'question_opt': ['cat', 'dog', 'horse']
+    #     }
 
-        response = self.client.post('/voting/', data, format='json')
-        self.assertEqual(response.status_code, 201)
+    #     response = self.client.post('/voting/', data, format='json')
+    #     self.assertEqual(response.status_code, 201)
 
     def test_update_voting(self):
         voting = self.create_voting()
@@ -244,6 +245,7 @@ class VotingTestCase(BaseTestCase):
         self.login()
         c = self.create_candidate()
         self.assertIsNotNone(c, 'Creating Candidate')
+
     def csv_validation_primaries_test(self):
         num_candidatos_inicial = len(Candidate.objects.all())
 
@@ -378,22 +380,47 @@ class VotingTestCase(BaseTestCase):
         response = self.client.get('/voting/view?id='+str(id_voting))
         self.assertEqual(response.status_code, 302)
 
-
-class TestSignup(unittest.TestCase):
-
-    def setUp(self):
-        self.driver = webdriver.Firefox()
-        
-    def test_custom_url(self):
-        self.driver.get("http://localhost:8000/admin/login/?next=/admin/")
-        # TODO
-        self.driver.find_element_by_id('id_username').send_keys("practica")
-        self.driver.find_element_by_id('id_password').send_keys("practica")
-        #self.driver.find_element_by_id('login-form').click()
-        #self.assertTrue(len(self.driver.find_elements_by_id('user-tools'))>0) 
     
-    def tearDown(self):
-        self.driver.quit
+    def test_custom_url_by_id(self):
+        
+        self.login()
+        c= self.create_candidateGroup()
+        v = self.create_voting_gobern()
+        v.candidatures.add(c)
+        
+        response = self.client.get('/voting/show/'+str(v.id))
 
-if __name__ == '__main__':
-    unittest.main()
+        self.assertEqual(response.status_code, 301)
+    
+    def test_custom_url_by_alias(self):
+        
+        self.login()
+        c= self.create_candidateGroup()
+        v = self.create_voting_gobern()
+        v.custom_url = 'voting1'
+        v.save()
+        v.candidatures.add(c)
+        
+        response = self.client.get('/voting/show/'+str(v.custom_url))
+
+        self.assertEqual(response.status_code, 301)
+    
+    def test_custom_url_by_id_none(self):
+        self.login()
+        
+        c = Client()
+        response = c.get(reverse('show voting', kwargs={'voting': 9999999}), {'HTTP_X_REQUESTED_WITH': 'XMLHttpRequest'})
+        response.user = self.login()
+
+        self.assertEqual(response.status_code, 404)
+    
+    def test_custom_url_by_alias_none(self):
+        
+        self.login()
+        
+        c = Client()
+        response = c.get(reverse('show voting', kwargs={'voting':'esto-es-una-url'}), {'HTTP_X_REQUESTED_WITH': 'XMLHttpRequest'})
+        response.user = self.login()
+        print(response)
+        print(response.status_code)
+        self.assertEqual(response.status_code, 404)
