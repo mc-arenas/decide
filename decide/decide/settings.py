@@ -71,7 +71,7 @@ MODULES = [
     'voting',
 ]
 
-BASEURL = 'https://decide-palkia-django.herokuapp.com'
+BASEURL = 'https://despliegueegc.herokuapp.com'
 
 APIS = {
     'authentication': BASEURL,
