@@ -8,30 +8,50 @@
 <!--<script type="text/javascript" src="../../read_csv.js"></script>-->
     <script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/markdown-it/10.0.0/markdown-it.js" ></script>
     <script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/dompurify/2.0.7/purify.min.js"></script>
+    <div id="backButton">
+        <a class="btn btn-danger" href="../votings">Atrás</a>
+    </div>
 
     <form method="post" enctype="multipart/form-data" action="/voting/edit/" >
       {% csrf_token %}
-      <span><label for="name">Name: {{voting.name}}</label> <input type="text" id="name" name="name" /></span><br/>
       
-      <span><label for="description">Description: {{voting.description}}</label><br/>
-      <textarea name="description" id="markdownText" cols="100" rows="10" oninput="htmlRenderizado()" onshow="htmlRenderizado()"></textarea></span>
+        <div class="input-group mb-3">
+            <div class="input-group-prepend">
+                <span class="input-group-text" id="inputGroup-sizing-default">Nombre</span>
+            </div>
+            <input type="text" class="form-control" aria-describedby="inputGroup-sizing-default" type="text" name="name" value="{{voting.name}}">
+        </div>
+
+      
+        <div class="input-group">
+            <div class="input-group-prepend">
+                <span class="input-group-text">Descripción</span>
+            </div>
+            <textarea class="form-control" name="description" id="markdownText" oninput="htmlRenderizado()" onpageshow="htmlRenderizado()" value="{{voting.desc}}" rows="15"></textarea>
+        </div>
+
+      
+      
       <div id="buttonsMarkdown">
-        <button id="botonAyuda" onclick="hideHelp()" form="no-form">
+        <button id="botonAyuda" onclick="hideHelp()" form="no-form" class="btn btn-light">
             <img class="markdownButtonImage" id="ayudaIcon" src="https://i.ibb.co/Q8vhsWz/see-info.png" alt="Ver ayuda" >
         </button>
-        <button id="botonAñadirLista" onclick="insertList()" form="no-form">
+        <button id="botonAñadirLista" onclick="insertList()" form="no-form" class="btn btn-light">
             <img class="markdownButtonImage" src="https://i.ibb.co/Nnbc1rL/list.png" alt="Añadir lista">
         </button>
-        <button id="botonAñadirTítulo" onclick="insertTitle()" form="no-form">
+        <button id="botonAñadirTítulo" onclick="insertTitle()" form="no-form" class="btn btn-light">
             <img class="markdownButtonImage" src="https://i.ibb.co/bdys3v6/capital-t.png" alt="Añadir título">
         </button>
-        <button id="botonBorrar" onclick="deleteContent()" form="no-form">
+        <button id="botonBorrar" onclick="deleteContent()" form="no-form" class="btn btn-light">
             <img class="markdownButtonImage" src="https://i.ibb.co/v17Nrhp/delete-button.png" alt="Borrar todo">
         </button>
     </div><br/>
 
-    <div id="markdownRenderizado"></div>
-    <div id="ayudaMarkdown" style="display: none;">
+    <div id="previsualizacion" class="card">
+        <h5 class="card-title">Previsualización de la descripción</h5>
+        <div id="markdownRenderizado"></div>
+    </div>
+    <div id="ayudaMarkdown" style="display: none;overflow: hidden;">
         <div id="ayudaMarkdownPlain">
             <p># Encabezado de primer nivel</p>
             
@@ -87,19 +107,28 @@
                 </p>
             </blockquote>
         </div>
-    </div>
-      <p>Candidaturas: </p>
+    </div><br/>
 
         <div id="candidatures-div"></div>
 
         <div id="tablaCandidaturas">
             <div id="formularioCandidaturas">
                 <fieldset>
-                    <label for="nameCSV">Nombre: </label>
-                    <input type="text" id="nameCSV" name="candidature_name" oninput="desbloquear_import()"/>
-                    <label for="csvFileInput"> <strong>Candidatures' CSV File:</strong>
-                    </label>
-                    <input id="import_button" type="file" id="csvFileInput" disabled="true" name="candidatures_file" onchange="handleFiles(this.files)" accept=".csv" />
+                    <div>
+                        <div class="input-group mb-3" style="float: left; width: 50%;">
+                            <div class="input-group-prepend">
+                                <span class="input-group-text" id="inputGroup-sizing-default">Nombre candidatura</span>
+                            </div>
+                            <input type="text" class="form-control" id="nameCSV" type="text" name="candidature_name" oninput="desbloquear_import()">
+                        </div>
+
+                        <div class="input-group mb-3" style="float: right; width: 50%;">
+                            <div class="custom-file">
+                                <input type="file" class="custom-file-input" type="file" name="candidatures_file" onchange="handleFiles(this.files)" accept=".csv" id="import_button" disabled="true">
+                                <label class="custom-file-label" for="import_button">Subir archivo CSV</label>
+                            </div>
+                        </div>
+                    </div>
                 </fieldset> 
             </div>
         
@@ -112,30 +141,87 @@
         <br>
         <br>
       <div id="auths_div">
-        <label for="auths" >Auths</label><select id="list" name="auths" multiple>
-            {%for a in auths%}
-            <option value='{{a.name}}'>{{a.name}}</option>
-            {%endfor%}
-        </select>
-        <div id="create_auth">
-            <label for="name-auth">Name:</label><input type="text" id="auth_name" />
-            <label for="base_url">Base URL:</label><input type="text" id="base_url" />
-            <label for="auth-me">Me:</label><input type="checkbox" id="auth_me" value="me"/>
-            <input type="button" onClick="createAuth()" value="Create auth" />
+        <div class="input-group mb-3">
+            <div class="input-group-prepend">
+                <label class="input-group-text" for="inputGroupSelect01">Auths</label>
+            </div>
+            <select class="custom-select" id="list" name="auths" multiple required>
+                {%for a in auths%}
+                <option value='{{a.name}}'>{{a.name}}</option>
+                {%endfor%}
+            </select>
+        </div>
+
+
+        <div>
+            <a class="btn btn-dark" data-toggle="collapse" href="#create_auth" role="button" aria-expanded="false">
+                Crear auth
+            </a>    
+        </div>
+        <div id="create_auth" class="collapse">
+        <br/>
+        <div class="input-group mb-3">
+            <div class="input-group-prepend">
+                <span class="input-group-text" id="inputGroup-sizing-default">Nombre</span>
+            </div>
+            <input type="text" class="form-control" type="text" id="auth_name">
+        </div>
+        <div class="input-group mb-3">
+            <div class="input-group-prepend">
+                <span class="input-group-text" id="inputGroup-sizing-default">URL base</span>
+            </div>
+            <input type="text" class="form-control" type="text" id="base_url">
+        </div>
+        <div class="input-group">
+            <div class="input-group-prepend">
+                <div class="input-group-text">
+                <input type="checkbox" id="auth_me" value="me">
+                </div>
+                <div class="input-group-append">
+                    <span class="input-group-text">Me</span>
+                </div>
+            </div>
+        </div>
+        <div style="text-align: center;">
+            <input class="btn btn-dark" type="button" onClick="createAuth()" value="Guardar auth"/>
+        </div>
         </div>
       </div>
-      <span><label for="startDate" >Start Date</label><input type="date" id="startDate" name="startDate"/></span>
-      <span><label for="endDate" >End Date</label><input type="date" id="endDate" name="endDate"/></span>
 
-      <input type="submit" name="submit" onClick="return alertForm();"/>
+        <br/>
+        <div class="input-group mb-3" >
+            <div class="input-group-prepend">
+                <span class="input-group-text" id="inputGroup-sizing-default">Fecha de inicio programada</span>
+            </div>
+            <input type="date" id="start_date_selected" name="start_date_selected" value="{{voting.start_date_selected}}" class="form-control">
+        </div>
+
+        <div class="input-group mb-3" >
+            <div class="input-group-prepend">
+                <span class="input-group-text" id="inputGroup-sizing-default">Fecha de fin programada</span>
+            </div>
+            <input type="date" id="end_date_selected" name="end_date_selected" value="{{voting.end_date_selected}}" class="form-control">
+        </div>
+
+        <div class="input-group mb-3" >
+            <div class="input-group-prepend">
+                <span class="input-group-text" id="inputGroup-sizing-default">URL personalizada</span>
+            </div>
+            <input type="text" id="custom_url" name="custom_url" value="{{voting.custom_url}}" class="form-control">
+            {% if mensaje is not None %}
+                <div class="alert alert-danger"><p>{{mensaje}}</p></div>
+            {% endif %}
+        </div>
+
+        <div style="text-align: center;">
+            <input type="submit" name="submit" id="button_submit" disabled="true" onClick="return alertForm();" class="btn btn-success" value="Guardar"/>
+        </div><br/>
     </form>
-    <div id="print">
-
-        <p id="validacion_print"></p>
+    <div id="print" >
 
     </div>
     <br/>
-<input type="button" value="Descargar" onclick="printHTML()"/>
+<input type="button" value="Descargar informe de errores" onclick="printHTML()" class="btn btn-dark"/>
 <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.4.1/jquery.min.js"></script>
     
 <script> 
@@ -184,6 +270,11 @@
         }
 
         drawOutputAsObj(lines);
+        var errors = document.getElementById("errors");
+        if (errors == null) {
+           $("#button_submit").attr("disabled", false);
+        }
+        
     }
 
     function errorHandler(evt) {
@@ -196,10 +287,19 @@
     function drawOutputAsObj(lines){
         //Clear previous data
         //document.getElementById("tablaCandidatura").innerHTML = "";
+
+
+        var nameInput = document.getElementById("nameCSV").value;
         var table = document.createElement("table");
+        table.id= "table"+nameInput;
+        table.className = "table";
+
         
         //for the table headings
-        var tableHeader = table.insertRow(-1);
+        var groupHeader = table.createTHead();
+        var tableHeader = document.createElement("tr");
+        groupHeader.appendChild(tableHeader);
+        groupHeader.className = "thead-dark";
         Object.keys(lines[0]).forEach(function(key){
             var el = document.createElement("TH");
             el.innerHTML = key;		
@@ -207,8 +307,9 @@
         });	
         
         //the data
+        var bodyTable = table.createTBody();
         for (var i = 0; i < lines.length; i++) {
-            var row = table.insertRow(-1);
+            var row = bodyTable.insertRow(-1);
             if(lines[i]['name'] != ''){
                 Object.keys(lines[0]).forEach(function(key){
                     var data = row.insertCell(-1);
@@ -221,14 +322,14 @@
         var divCandidatura = document.createElement("div");
         var nameInput = document.getElementById("nameCSV").value;
 
-        var nombreCandidatura = document.createElement("label");
-        nombreCandidatura.innerHTML = nameInput;
+        //var nombreCandidatura = document.createElement("label");
+        //nombreCandidatura.innerHTML = nameInput;
         divCandidatura.id = "tablaCandidatura"+nameInput;
         
         document.getElementById("tablaCandidatura").appendChild(divCandidatura);
 
         var inputCandidatura = document.createElement("input");
-        inputCandidatura.id="candidatures";
+        inputCandidatura.id="candidatures" + nameInput;
         inputCandidatura.name="candidatures";
         inputCandidatura.type="hidden";
         inputCandidatura.value = nameInput;
@@ -237,20 +338,60 @@
 
         document.getElementById("candidatures-div").appendChild(inputCandidatura);
 
-        var deleteCandidatura = document.createElement("input");
-        deleteCandidatura.value = "Delete " + nameInput;
-        deleteCandidatura.type = "button"
-        deleteCandidatura.onclick = function() {
-            delete_candidature("tablaCandidatura" + nameInput);
+        var displayCandidatura = document.createElement("input");
+        displayCandidatura.value = "Display " + nameInput;
+        displayCandidatura.type = "button";
+        displayCandidatura.id = "display"+nameInput;
+        displayCandidatura.className = "btn btn-dark";
+        displayCandidatura.style.display = "none"; 
+        displayCandidatura.onclick = function() {
+            display_candidature(nameInput);
         };
 
-        document.getElementById("tablaCandidatura"+ nameInput).appendChild(nombreCandidatura);
-        document.getElementById("tablaCandidatura"+ nameInput).appendChild(table);
+        var hideCandidatura = document.createElement("input");
+        hideCandidatura.value = "Hide " + nameInput;
+        hideCandidatura.type = "button";
+        hideCandidatura.className = "btn btn-secondary";
+        hideCandidatura.id = "hide"+nameInput;
+        hideCandidatura.onclick = function() {
+            hide_candidature(nameInput);
+        };
+
+        var deleteCandidatura = document.createElement("input");
+        deleteCandidatura.value = "Delete " + nameInput;
+        deleteCandidatura.type = "button";
+        deleteCandidatura.style = "margin-left: 1em;";
+        deleteCandidatura.className = "btn btn-danger";
+        deleteCandidatura.onclick = function() {
+            delete_candidature(nameInput);
+        };
+
+        //document.getElementById("tablaCandidatura"+ nameInput).appendChild(nombreCandidatura);
+
+        document.getElementById("tablaCandidatura"+ nameInput).appendChild(displayCandidatura);
+        document.getElementById("tablaCandidatura"+ nameInput).appendChild(hideCandidatura);
         document.getElementById("tablaCandidatura"+ nameInput).appendChild(deleteCandidatura);
+
+        document.getElementById("tablaCandidatura"+ nameInput).appendChild(table);
+
     }
     
     function delete_candidature(data){
-        document.getElementById(data).remove()
+        document.getElementById("tablaCandidatura"+data).remove();
+        document.getElementById("candidatures"+data).remove();
+        document.getElementById("errors"+data).remove();
+    }
+
+    function display_candidature(name){
+        $("#table"+name).show();
+        $("#hide"+name).show();
+        $("#display"+name).hide();
+    }
+
+    function hide_candidature(name){
+        $("#table"+name).hide();
+        $("#display"+name).show();
+        $("#hide"+name).hide();
     }
 
     function desbloquear_import(){
@@ -271,10 +412,12 @@
     }
 
     function validateLines(csv) {
+        var candidature_name = document.getElementById('nameCSV').value;
+
         $.ajax({
             type: "POST",
             url: "../validate/",
-            data: { param: csv },
+            data: { param: csv, candidature_name: candidature_name },
             success: callbackFunc
         });
     }
@@ -283,8 +426,11 @@
         var auth_name = document.getElementById('auth_name').value;
         var base_url = document.getElementById('base_url').value;
         var auth_me = document.getElementById('auth_me').checked;
-
         var me = auth_me?'True':'False';
+
+        if(!(base_url.startsWith('http://') || base_url.startsWith('https://'))){
+            base_url = 'http://' + base_url;
+        }
 
         $.ajax({type: "POST",
                 url: "../create_auth/",
@@ -297,7 +443,7 @@
 
     function callbackFunc(response) {
         // do something with the response
-        document.getElementById("validacion_print").innerHTML = response;
+        document.getElementById("print").insertAdjacentHTML('beforeend',response);
     }
 
     function callbackFunc2(response){
@@ -432,9 +578,7 @@ function printHTML() {
     </script>
     <style>
         
-    .tablaCandidatura{
-        border: 1px solid black;
-    }
+
     
 #ayudaMarkdown {
     margin-top: 1em;
@@ -473,5 +617,22 @@ function printHTML() {
 .markdownButtonImage {
     height: 20px;
 }
+
+#errors {
+    margin: 1 em;
+}
+
+#buttonsMarkdown {
+    text-align: center;
+}
+
+#backButton {
+    margin: 1em;
+}
+
+#previsualizacion {
+    padding: 1em;
+}
+
     </style>
 {% endblock %}

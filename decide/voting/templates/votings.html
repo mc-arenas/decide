@@ -1,321 +1,238 @@
 {% extends 'block.html' %}
 
-
-
 {% block content %}
 
-
-
 <script>
-
-
-
     function grab_selected() {
-
       var tasks = [];
-
       var array = document.getElementsByName("voting_id[]");
-
       array.forEach(element => {
-
         if(element.checked){
-
           tasks.push(element.value);
-
         }
-
       });
-
       var inputNombre = document.getElementById("array_voting_id[]");
-
       inputNombre.value = tasks;
-
     }
-
-
 
     function select_all(){
-
       array = document.getElementsByName("voting_id[]")
-
       selector = document.getElementById("selector")
-
       array.forEach(element => {
-
             if(selector.checked){
-
               element.checked = 1
-
             } else{
-
               element.checked = 0
-
             }
-
           });
-
     }
-
-
-
 </script>
 
 
+<h1 style="margin-bottom: 50px;" >Lista de votaciones</h1>
 
+{% if errors != 0 %}
 
+    <div class="alert alert-danger" role="alert">
+        <p>{{msg}}</p>
+    </div>
 
-<h1>Lista de votaciones</h1>
-
-
+{% endif %}
 
 <form id="form-votaciones" action="update_selection/" id="multiple-selection" method="POST">
-
   {% csrf_token %}
 
   <div class="actions">
 
-      <label>Action: 
+    <div class="input-group mb-3" style="width: 40%; float: left;">
+      <div class="input-group-prepend">
+          <label class="input-group-text" for="inputGroupSelect01">Acciones</label>
+      </div>
 
-        <select name="action_multiple" required>
-
-
-
+        <select class="custom-select" name="action_multiple" >
           <option value="" selected>---------</option>
+          <option value="delete">Eliminar</option>
+          <option value="start">Empezar</option>
+          <option value="stop">Parar</option>
+          <option value="tally" disabled>Hacer recuento</option>
+        </select> 
+        <div class="input-group-append">
+            <input class="btn btn-outline-secondary" role="button"  type="submit" form="multiple-selection" value="Go"/>
+          </div>    
+    </div>
 
 
-
-          <option value="delete">Delete selected votings</option>
-
-
-
-          <option value="start">Start</option>
-
-
-
-          <option value="stop">Stop</option>
-
-
-
-          <option value="tally">Tally</option>
-
-
-
-        </select>
-
-    </label>
-
-    
-
-    <input type="submit" form="multiple-selection" value="Go"/>
+    <a class="btn btn-primary" id="boton_crear_votacion" role="button" href="../edit">Crear votación</a>
 
       
 
   </div>
 
-
-
-
-
-
-
   <table>
 
       <tr>
-
-        <th scope="col">
-
+        <th scope="col" class="titulo">
             <div class="text"><span><input type="checkbox" id="selector" onclick="select_all()"/></span></div>
+        </th>
 
-          </th>
-
-    
-
-          <th scope="col" class="titulo">
-
+        <th scope="col" class="titulo">
             <div class="text"><a href="?o=1">Nombre</a></div>
+        </th>
 
-          </th>
+        <th scope="col" class="titulo">
+          <div class="text"><a href="?o=2">Comienzo</a></div>
+        </th>
 
+        <th scope="col" class="titulo">
+          <div class="text"><a href="?o=3">Finalización</a></div>
+        </th>
 
-
+        <th scope="col" class="titulo"></th>
+        <th scope="col" class="titulo"></th>
+        <th scope="col" class="titulo"></th>
+        <th scope="col" class="titulo"></th>
+        <th scope="col" class="titulo"></th>
 
       </tr>
 
     {% for row in votings %}
 
         <tr>
-
-            <td>
-
+            <td class="fil">
               <input type="checkbox" onclick="grab_selected()" name="voting_id[]" value="{{row.id}}"/>
-
             </td>
 
             <th class="fil">
-
               <a href="/voting/show/{{row.id}}">{{row.name}}</a>
-
             </th>
 
-            <td class="fil">
+            <th class="fil">
+              {% if row.start_date == null %}  
+                <p>--</p>
+              {% endif %}
 
-                <form method="post" action="update/">
+              {% if row.start_date != null %}  
+                <p>{{row.start_date}}</p>
+              {% endif %}
+            </th>
 
-                  {% csrf_token %}
+            <th class="fil">
+                {% if row.end_date == null %}  
+                <p>--</p>
+              {% endif %}
 
-                  <input name="action" type="hidden" value="start"/>
+              {% if row.end_date != null %}  
+                <p>{{row.end_date}}</p>
+              {% endif %}
+            </th>
 
-                  <input name="voting_id" type="hidden" value="{{row.id}}"/>
-
-                  <input type="submit" value="Start"/>
-
-                </form>
-
-            </td>
-
-            <td class="fil">
-
-                <form method="post" action="update/">
-
-                  {% csrf_token %}
-
-                  <input name="action" type="hidden" value="stop"/>
-
-                  <input name="voting_id" type="hidden" value="{{row.id}}"/>
-
-                  <input type="submit" value="Stop"/>
-
-                </form>
-
-            </td>
+            <form></form>
 
             <td class="fil">
-
-                <form method="post" action="update/">
-
-                  {% csrf_token %}
-
-                  <input name="action" type="hidden" value="tally"/>
-
-                  <input name="voting_id" type="hidden" value="{{row.id}}"/>
-
-                  <input type="submit" value="Tally"/>
-
-                </form>
-
-            </td>
-
-            <td class="fil">
-
-                <form method="post" action="update/">
-
-                  {% csrf_token %}
-
-                  <input name="action" type="hidden" value="delete"/>
-
-                  <input name="voting_id" type="hidden" value="{{row.id}}"/>
-
-                  <input type="submit" value="Delete"/>
-
-                </form>
-
-            </td>
-            <td class="fil">
-
               <form method="post" action="update/">
-
                 {% csrf_token %}
-
-                <input name="action" type="hidden" value="copy"/>
-
+                <input name="action" type="hidden" value="start"/>
                 <input name="voting_id" type="hidden" value="{{row.id}}"/>
-
-                <input type="submit" value="copy"/>
-
+                <input type="image" src="https://image.flaticon.com/icons/svg/483/483054.svg" value="Empezar" alt="Empezar votación" title="Empezar votación"/>
               </form>
+            </td>
 
+            <td class="fil">
+                <form method="post" action="update/">
+                  {% csrf_token %}
+                  <input name="action" type="hidden" value="stop"/>
+                  <input name="voting_id" type="hidden" value="{{row.id}}"/>
+                  <input type="image" src="https://image.flaticon.com/icons/svg/2404/2404640.svg" value="Parar" alt="Parar votación" title="Parar votación"/>
+                </form>
+            </td>
+
+            <td class="fil">
+                <form method="post" action="update/">
+                  {% csrf_token %}
+                  <input name="action" type="hidden" value="delete"/>
+                  <input name="voting_id" type="hidden" value="{{row.id}}"/>
+                  <input type="image"  src="https://image.flaticon.com/icons/svg/1214/1214594.svg" value="Eliminar" alt="Eliminar votación" title="Eliminar votación"/>
+                </form>
             </td>
             
+            <td class="fil">
+              <form method="get" action="../copy/{{row.id}}">
+                {% csrf_token %}
+                <input type="image" src="https://image.flaticon.com/icons/svg/1477/1477084.svg" value="Copiar" alt="Copiar votación" title="Copiar votación"/>
+              </form>
+            </td>
+
+            <td class="fil">
+              <form method="post" action="update/">
+                {% csrf_token %}
+                <input name="action" type="hidden" value="tally"/>
+                <input name="voting_id" type="hidden" value="{{row.id}}"/>
+                <input id="hola" disabled type="image" src="https://image.flaticon.com/icons/svg/1456/1456099.svg" value="Recuento" alt="Hacer recuento" title="Hacer recuento"/>
+              </form>
+            </td>
 
           </tr>
-
       {% endfor %}
 
   </table>
-
-
 
   <input type="hidden" id="array_voting_id[]" name="array_voting_id[]" value="">
 
 </form>
 
-
-
 <style>
 
-
-
-
-
-
-
     #form-votaciones{
-
         float: left;
-
     }
-
-
 
     #form-votaciones > .actions{
-
-      width: 100%;
-
-      float: left;
-
-      margin-bottom: 10px;
-
-      margin-top: 25px;
-
+        width: 100%;
+        float: left;
+        margin-bottom: 10px;
+        margin-top: 25px;
     }
-
-    
 
     #form-votaciones > .actions > input,label{
-
-      float: left;
-
-      margin-left: 40px;
-
+        float: left;
+        margin-left: 40px;
     }
-
-  
-
     #form-votaciones > table{
-
-      width: 100%;
-
+        width: 100%;
     }
-
-
 
     .fil{
-
-      padding-bottom: 5px;
-
-      padding-top: 5px;
-
+        padding-bottom: 10px;
+        padding-top: 10px;
+        text-align: center;
+    }
+    .fil > form > input{
+        width: 30px; 
+        filter: opacity(45%);
     }
 
-    
+    .fil > form > input:hover{
+        filter: opacity(65%);
+    }
+
+    .titulo{
+        padding-bottom: 5px;
+        padding-top: 5px;
+        text-align: center;
+        border-bottom: 1px solid lightgray;
+    }
+
+    #boton_crear_votacion{
+        float: right;
+    }
 
     </style>
 
-    
-
-    
-
 {% endblock %}
+
+
+
+
 
 
 

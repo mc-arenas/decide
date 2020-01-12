@@ -19,8 +19,9 @@ from django.core.exceptions import ValidationError
 from django.views.decorators.csrf import csrf_exempt
 from django.views.decorators.csrf import requires_csrf_token
 from django.db import transaction
-from django.http import HttpResponse
+from django.http import HttpResponse, HttpResponseForbidden
 from rest_framework.renderers import JSONRenderer
+from django.contrib.auth.decorators import user_passes_test
 
 import json
 import csv
@@ -29,6 +30,7 @@ import markdown
 
 dirspot = os.getcwd()
 
+@user_passes_test(lambda user: user.is_superuser, login_url="/")
 def candidates_load(request):
     if request.method == 'POST':
         form = UploadFileForm(request.POST, request.FILES)
@@ -42,6 +44,7 @@ def candidates_load(request):
         form = UploadFileForm()
     return render(request, dirspot+'/voting/templates/upload.html', {'form': form})
 
+@user_passes_test(lambda user: user.is_superuser, login_url="/")
 def voting_edit(request):
 
     auths = Auth.objects.all()
@@ -51,7 +54,13 @@ def voting_edit(request):
 
         votingName = request.POST["name"]
         votingDescription = request.POST["description"]
-
+        start_date_selected = request.POST["start_date_selected"]
+        end_date_selected = request.POST["end_date_selected"]
+        custom_url = request.POST["custom_url"]
+        if start_date_selected == "":
+            start_date_selected = None
+        if end_date_selected == "":
+            end_date_selected = None
         
         permission_classes = (UserIsStaff,)
         #for data in ['name', 'desc', 'candidatures']:
@@ -60,10 +69,18 @@ def voting_edit(request):
 
         if form.is_valid:
             candidatures = request.POST.getlist("candidatures")
-            voting = Voting(name=votingName, desc=votingDescription)
+            voting = Voting(name=votingName, desc=votingDescription, custom_url=custom_url, start_date_selected=start_date_selected, end_date_selected=end_date_selected)
                     #candidatures=request.data.get('candidatures'))
                     #question=question)
-            voting.save()
+            
+            if custom_url is None:
+                voting.save()
+            else:
+                try:
+                    encuentraVotacionConCustomURL = Voting.objects.get(custom_url=custom_url)
+                    return render(request, dirspot+'/voting/templates/newVotingForm.html', {'form': form, 'auths':auths, 'mensaje':'Esta url ya existe, elija otra', 'voting':voting})
+                except Exception:    
+                    voting.save()
 
             candidatures_db = []
             for candidature in candidatures:
@@ -71,7 +88,7 @@ def voting_edit(request):
                     c = CandidatesGroup.objects.get(name=candidature)
                     candidatures_db.append(c)
                 except:
-                    CandidatesGroup(name=candidature).save() 
+                    CandidatesGroup(name=candidature).save()
                     c = CandidatesGroup.objects.get(name=candidature)
                     candidatures_db.append(c)
             
@@ -91,25 +108,26 @@ def voting_edit(request):
                 voting.auths.add(a)
             #Accion que se debe realizar en la lista
             #voting.create_pubkey()
-
-        return render(request, dirspot+'/voting/templates/newVotingForm.html', {'status':status.HTTP_201_CREATED, 'auths':auths})
+        votings = Voting.objects.all()
+        return render(request, 'votings.html', {'votings': votings})    
     else:
         form = NewVotingForm()
     return render(request, dirspot+'/voting/templates/newVotingForm.html', {'form': form, 'auths':auths})
 
-
-@csrf_exempt
 @transaction.atomic
-def handle_uploaded_file(response):    
+@csrf_exempt
+def handle_uploaded_file(response):
     rows = response.POST['param'].split("\n")
 
     validation_errors = []
     provincias = ['VI', 'AB', 'A', 'AL', 'AV', 'BA', 'PM', 'B', 'BU', 'CC', 'CA', 'CS', 'CR', 'CO', 'C', 'CU', 'GI', 'GR', 'GU', 'SS', 'H', 'HU', 'J', 'LE', 
         'L', 'LO', 'LU', 'M', 'MA', 'MU', 'NA', 'OR', 'O', 'P', 'GC', 'PO', 'SA', 'TF', 'S', 'SG', 'SE', 'SO', 'T', 'TE', 'TO', 'V', 'VA', 'BI', 'ZA', 'Z', 'CE', 'ML']
-    count_provincias = dict((prov, 0) for prov in provincias)    
+    count_provincias = dict((prov, 0) for prov in provincias)
     row_line = 1
-    candidatesGroupSex = {}
-    count_presidents = {}
+    maleCount = 0
+    femaleCount = 0
+    count_presidents = 0
+    candidature_name = response.POST['candidature_name']
 
     for row in rows:
         if row_line != 1:
@@ -122,13 +140,13 @@ def handle_uploaded_file(response):
                 current_area = user[3]
                 primaries = user[4]
                 sex = user[5]
-                candidatesGroupName = user[6]
-                
+                candidatesGroupName = response.POST['candidature_name']
+
                 if sex == "HOMBRE":
-                    candidatesGroupSex[candidatesGroupName] = [candidatesGroupSex.get(candidatesGroupName, [0,0])[0] + 1, candidatesGroupSex.get(candidatesGroupName, [0,0])[1]]
+                    maleCount = maleCount + 1
                 else:
-                    candidatesGroupSex[candidatesGroupName] = [candidatesGroupSex.get(candidatesGroupName, [0,0])[0], candidatesGroupSex.get(candidatesGroupName, [0,0])[1] + 1]
-            
+                    femaleCount = femaleCount + 1
+
                 if primaries == 'FALSE':
                     primaries = False
                     validation_errors.append("Error en la línea " + str(row_line) + ": El candidato " + str(name) + " no ha pasado el proceso de primarias")
@@ -136,9 +154,7 @@ def handle_uploaded_file(response):
                     primaries = True
 
                 if _type == "PRESIDENCIA":
-                    count_presidents[candidatesGroupName] = count_presidents.get(candidatesGroupName, 0) + 1
-                else:
-                    count_presidents[candidatesGroupName] = count_presidents.get(candidatesGroupName, 0)
+                    count_presidents = count_presidents + 1
 
                 if _type == 'CANDIDATO' and (born_area in count_provincias and current_area in count_provincias):
                     if born_area == current_area:
@@ -164,17 +180,14 @@ def handle_uploaded_file(response):
             
         row_line = row_line + 1
 
-        
-    for key in count_presidents.keys():
-        if count_presidents[key] > 1:
-                validation_errors.append("La candidatura " + str(key) + " tiene más de un candidato a presidente")
-    
-    for key in candidatesGroupSex.keys():
-        malePercentage = (candidatesGroupSex[key][0]*100)/(candidatesGroupSex[key][0]+candidatesGroupSex[key][1])
-        if  malePercentage > 60 or malePercentage < 40:
-            validation_errors.append("La candidatura " + str(key) + " no cumple un balance 60-40 entre hombres y mujeres")
-        if candidatesGroupSex[key][0] + candidatesGroupSex[key][1] > 350:
-            validation_errors.append("La candidatura " + str(key) + " supera el máximo de candidatos permitidos (350)")
+    if count_presidents > 1:
+            validation_errors.append("La candidatura " + candidatesGroupName + " tiene más de un candidato a presidente")
+
+    malePercentage = (maleCount*100)/(maleCount+femaleCount)
+    if  malePercentage > 60 or malePercentage < 40:
+        validation_errors.append("La candidatura " + candidatesGroupName + " no cumple un balance 60-40 entre hombres y mujeres")
+    if maleCount + femaleCount > 350:
+        validation_errors.append("La candidatura " + candidatesGroupName + " supera el máximo de candidatos permitidos (350)")
     
     provincias_validacion = [prov for prov in provincias if count_provincias[prov] < 2]
 
@@ -183,100 +196,123 @@ def handle_uploaded_file(response):
 
 
     if len(validation_errors) > 0:
-       transaction.set_rollback(True)
+        transaction.set_rollback(True)
 
-    return HttpResponse(validation_errors)
-    
+    html = ""
+    if len(validation_errors) > 0:
+        html = '<div id="errors'
+        html = html + str(candidature_name)
+        html = html +'" style="color: #D63301;background-color: #FFCCBA;border-radius: 1em;padding: 1em;border-style: solid;border-width: 1px;border-color: #D63301;">'
+        html = html + '<p style="text-align: left; width: 100%; size: 24px !important; font-weight: bold !important;"> La candidatura ' + candidatesGroupName + ' tiene los siguientes errores: </p><ul>'
+        for error in validation_errors:
+            html = html + '<li style="text-align: left; padding-left: 15px;"> ' + error + '</li>'
+        html = html + '<ul/></div>'
+    return HttpResponse(html)
 
+@user_passes_test(lambda user: user.is_superuser, login_url="/")
 def voting_list(request):
     votings = Voting.objects.all()
-    return render(request, "votings.html", {'votings':votings, 'STATIC_URL':settings.STATIC_URL})
+    return render(request, "votings.html", {'votings':votings, 'errors': False, 'STATIC_URL':settings.STATIC_URL})
 
+
+@user_passes_test(lambda user: user.is_superuser, login_url="/")
 def voting_list_update(request):
     voting_id = request.POST['voting_id']
     voting = get_object_or_404(Voting, pk=voting_id)
     action = request.POST['action']
+    error = False
+    msg = ""
     if action == 'start':
         if voting.start_date:
-            url = "/admin/"
-            # TODO Cuando seleccionas algunas que estan empezadas o no
+            msg = "Error: La votación ya ha comenzado"
+            error = True
         else:
             voting.start_date = timezone.now()
             voting.save()
-            url = "/voting/votings/"
     elif action == 'stop':
         if not voting.start_date:
-            url = "/admin/"
+            msg = "Error: La votación ya ha comenzado"
+            error = True
         elif voting.end_date:
-            url = "/admin/"
+            msg = "Error: La votación ya ha finalizado"
+            error = True
         else:
             voting.end_date = timezone.now()
             voting.save()
-            url = "/voting/votings/"
     elif action == 'tally':
         if not voting.start_date:
-            url = "/admin/"
+            msg = "Error: La votación no ha comenzado"
+            error = True
         elif not voting.end_date:
-            url = "/admin/"
+            msg = "Error: La votación no ha finalizado"
+            error = True
         elif voting.tally:
-            url = "/admin/"
+            msg = "Error: La votación ya ha sido contada"
+            error = True
         else:
             voting.tally_votes(request.auth.key)
-            url = "/voting/votings/"
     elif action == 'delete':
         voting.delete()
-        url = "/voting/votings/"
-    elif action == 'copy':
-        url = "/voting/copy/" + str(voting_id)
     else:
-        #TODO 
-        url = "/voting/votings/"
+        msg = "Error"
+        error = True
 
-    return HttpResponseRedirect(url)
+    votings = Voting.objects.all()
+    return render(request, "votings.html", {'votings':votings, 'errors':error, 'msg':msg})
 
+@user_passes_test(lambda user: user.is_superuser, login_url="/")
 def voting_list_update_multiple(request):
     array_voting_id = request.POST['array_voting_id[]'].split(",")
     action = request.POST['action_multiple']
     for voting_id in array_voting_id:
         voting = get_object_or_404(Voting, pk=voting_id)
+        error = False
+        msg = ""
         if action == 'start':
             if voting.start_date:
-                url = "/admin/"
-                # TODO Cuando seleccionas algunas que estan empezadas o no
+                msg = "Error: La votación ya ha comenzado"
+                error = True
+                break
             else:
                 voting.start_date = timezone.now()
                 voting.save()
-                url = "/voting/votings/"
         elif action == 'stop':
             if not voting.start_date:
-                url = "/admin/"
+                msg = "Error: La votación ya ha comenzado"
+                error = True
+                break
             elif voting.end_date:
-                url = "/admin/"
+                msg = "Error: La votación ya ha finalizado"
+                error = True
+                break
             else:
                 voting.end_date = timezone.now()
                 voting.save()
-                url = "/voting/votings/"
         elif action == 'tally':
             if not voting.start_date:
-                url = "/admin/"
+                msg = "Error: La votación no ha comenzado"
+                error = True
+                break
             elif not voting.end_date:
-                url = "/admin/"
+                msg = "Error: La votación no ha finalizado"
+                error = True
+                break
             elif voting.tally:
-                url = "/admin/"
+                msg = "Error: La votación ya ha sido contada"
+                error = True
+                break
             else:
-                #TODO
                 voting.tally_votes(request.auth.key)
-                url = "/voting/votings/"
         elif action == 'delete':
-            #TODO 
-            voting.delete()
-            url = "/voting/votings/"
+                voting.delete()
         else:
-            #TODO 
-            url = "/voting/votings/"
+            msg = "Error"
+            error = True
+            break
 
-    return HttpResponseRedirect(url)
-
+    votings = Voting.objects.all()
+    return render(request, "votings.html", {'votings':votings, 'errors':error, 'msg':msg})
+    
 class VotingView(generics.ListCreateAPIView):
     queryset = Voting.objects.all()
     serializer_class = VotingSerializer
@@ -368,6 +404,7 @@ class VotingUpdate(generics.RetrieveUpdateDestroyAPIView):
             st = status.HTTP_400_BAD_REQUEST
         return Response(msg, status=st)
 
+@user_passes_test(lambda user: user.is_superuser, login_url="/")
 def getVoting(request):
     id_voting = request.GET['id']
     voting = get_object_or_404(Voting, pk=id_voting)
@@ -376,6 +413,7 @@ def getVoting(request):
     data = JSONRenderer().render(voting_json.data)
     return HttpResponse(data)
 
+@user_passes_test(lambda user: user.is_superuser, login_url="/")
 @csrf_exempt
 def create_auth(request):
     name = request.POST["auth_name"]
@@ -386,13 +424,18 @@ def create_auth(request):
         me = True
     elif auth_me == 'False':
         me = False
-    
+
 
     Auth.objects.get_or_create(url=baseurl, defaults={'me': me, 'name': name})
 
     auths = Auth.objects.all()
-    
-    return HttpResponse({'auths':auths})
+
+    if Auth.objects.get(url=baseurl):
+        st = status.HTTP_200_OK
+    else:
+        st = status.HTTP_500_INTERNAL_SERVER_ERROR
+
+    return HttpResponse({'auths':auths}, status=st)
 
 def copy_voting(request, voting_id):
     voting = get_object_or_404(Voting, pk=voting_id)
@@ -408,6 +451,7 @@ def copy_voting(request, voting_id):
     new_voting.save()
     return HttpResponseRedirect("/voting/votings")
 
+@user_passes_test(lambda user: user.is_superuser, login_url="/")
 def show_voting(request, voting):
 
     if type(voting) is int:
