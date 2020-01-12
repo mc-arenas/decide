@@ -29,6 +29,22 @@ class VotingTestCase(BaseTestCase):
     def tearDown(self):
         super().tearDown()
 
+    def create_voting(self):       
+        cg = CandidatesGroup(name='PP')  
+        groups = []
+        groups.append(cg)     
+        cg.save()       
+        for i in range(5):           
+            candidate = Candidate(name='Juan', type='PRESIDENCIA', born_area='AB',current_area='AB', primaries=True, sex='HOMBRE', candidatesGroup=cg)           
+            candidate.save()       
+            v = Voting(name='test voting', desc='desc')     
+            v.save()       
+            v.candidatures.set(groups)  
+            a, _ = Auth.objects.get_or_create(url=settings.BASEURL,defaults={'me': True, 'name': 'test auth'})       
+            a.save()       
+            v.auths.add(a)       
+        return v
+
     def encrypt_msg(self, msg, v, bits=settings.KEYBITS):
         pk = v.pub_key
         p, g, y = (pk.p, pk.g, pk.y)
@@ -37,7 +53,6 @@ class VotingTestCase(BaseTestCase):
         return k.encrypt(msg)
 
     def create_voting_gobern(self):
-        print("Creando Votación Presidenciales - Congreso")
         v = Voting(name="Votación Gobierno 2020")
         v.save()
 
@@ -48,21 +63,6 @@ class VotingTestCase(BaseTestCase):
 
         return v
 
-    #def create_voting(self):
-    #    q = Question(desc='test question')
-    #    q.save()
-    #    for i in range(5):
-    #        opt = QuestionOption(question=q, option='option {}'.format(i+1))
-    #        opt.save()
-    #    v = Voting(name='test voting', question=q)
-    #    v.save()
-
-    #    a, _ = Auth.objects.get_or_create(url=settings.BASEURL,
-    #                                      defaults={'me': True, 'name': 'test auth'})
-    #    a.save()
-    #    v.auths.add(a)
-
-    #    return v
 
     def create_voters(self, v):
         for i in range(100):
@@ -78,153 +78,6 @@ class VotingTestCase(BaseTestCase):
         user.set_password('qwerty')
         user.save()
         return user
-
-    def store_votes(self, v):
-        voters = list(Census.objects.filter(voting_id=v.id))
-        voter = voters.pop()
-
-        clear = {}
-        for opt in v.question.options.all():
-            clear[opt.number] = 0
-            for i in range(random.randint(0, 5)):
-                a, b = self.encrypt_msg(opt.number, v)
-                data = {
-                    'voting': v.id,
-                    'voter': voter.voter_id,
-                    'vote': { 'a': a, 'b': b },
-                }
-                clear[opt.number] += 1
-                user = self.get_or_create_user(voter.voter_id)
-                self.login(user=user.username)
-                voter = voters.pop()
-                mods.post('store', json=data)
-        return clear
-
-    def test_complete_voting(self):
-        v = self.create_voting()
-        self.create_voters(v)
-
-        v.create_pubkey()
-        v.start_date = timezone.now()
-        v.save()
-
-        clear = self.store_votes(v)
-
-        self.login()  # set token
-        v.tally_votes(self.token)
-
-        tally = v.tally
-        tally.sort()
-        tally = {k: len(list(x)) for k, x in itertools.groupby(tally)}
-
-        for q in v.question.options.all():
-            self.assertEqual(tally.get(q.number, 0), clear.get(q.number, 0))
-
-        for q in v.postproc:
-            self.assertEqual(tally.get(q["number"], 0), q["votes"])
-
-    def test_create_voting_from_api(self):
-        data = {'name': 'Example'}
-        response = self.client.post('/voting/', data, format='json')
-        self.assertEqual(response.status_code, 401)
-
-        # login with user no admin
-        self.login(user='noadmin')
-        response = mods.post('voting', params=data, response=True)
-        self.assertEqual(response.status_code, 403)
-
-        # login with user admin
-        self.login()
-        response = mods.post('voting', params=data, response=True)
-        self.assertEqual(response.status_code, 400)
-
-        data = {
-            'name': 'Example',
-            'desc': 'Description example',
-            'question': 'I want a ',
-            'question_opt': ['cat', 'dog', 'horse']
-        }
-
-        response = self.client.post('/voting/', data, format='json')
-        self.assertEqual(response.status_code, 201)
-
-    def test_update_voting(self):
-        voting = self.create_voting()
-
-        data = {'action': 'start'}
-        #response = self.client.post('/voting/{}/'.format(voting.pk), data, format='json')
-        #self.assertEqual(response.status_code, 401)
-
-        # login with user no admin
-        self.login(user='noadmin')
-        response = self.client.put('/voting/{}/'.format(voting.pk), data, format='json')
-        self.assertEqual(response.status_code, 403)
-
-        # login with user admin
-        self.login()
-        data = {'action': 'bad'}
-        response = self.client.put('/voting/{}/'.format(voting.pk), data, format='json')
-        self.assertEqual(response.status_code, 400)
-
-        # STATUS VOTING: not started
-        for action in ['stop', 'tally']:
-            data = {'action': action}
-            response = self.client.put('/voting/{}/'.format(voting.pk), data, format='json')
-            self.assertEqual(response.status_code, 400)
-            self.assertEqual(response.json(), 'Voting is not started')
-
-        data = {'action': 'start'}
-        response = self.client.put('/voting/{}/'.format(voting.pk), data, format='json')
-        self.assertEqual(response.status_code, 200)
-        self.assertEqual(response.json(), 'Voting started')
-
-        # STATUS VOTING: started
-        data = {'action': 'start'}
-        response = self.client.put('/voting/{}/'.format(voting.pk), data, format='json')
-        self.assertEqual(response.status_code, 400)
-        self.assertEqual(response.json(), 'Voting already started')
-
-        data = {'action': 'tally'}
-        response = self.client.put('/voting/{}/'.format(voting.pk), data, format='json')
-        self.assertEqual(response.status_code, 400)
-        self.assertEqual(response.json(), 'Voting is not stopped')
-
-        data = {'action': 'stop'}
-        response = self.client.put('/voting/{}/'.format(voting.pk), data, format='json')
-        self.assertEqual(response.status_code, 200)
-        self.assertEqual(response.json(), 'Voting stopped')
-
-        # STATUS VOTING: stopped
-        data = {'action': 'start'}
-        response = self.client.put('/voting/{}/'.format(voting.pk), data, format='json')
-        self.assertEqual(response.status_code, 400)
-        self.assertEqual(response.json(), 'Voting already started')
-
-        data = {'action': 'stop'}
-        response = self.client.put('/voting/{}/'.format(voting.pk), data, format='json')
-        self.assertEqual(response.status_code, 400)
-        self.assertEqual(response.json(), 'Voting already stopped')
-
-        data = {'action': 'tally'}
-        response = self.client.put('/voting/{}/'.format(voting.pk), data, format='json')
-        self.assertEqual(response.status_code, 200)
-        self.assertEqual(response.json(), 'Voting tallied')
-
-        # STATUS VOTING: tallied
-        data = {'action': 'start'}
-        response = self.client.put('/voting/{}/'.format(voting.pk), data, format='json')
-        self.assertEqual(response.status_code, 400)
-        self.assertEqual(response.json(), 'Voting already started')
-
-        data = {'action': 'stop'}
-        response = self.client.put('/voting/{}/'.format(voting.pk), data, format='json')
-        self.assertEqual(response.status_code, 400)
-        self.assertEqual(response.json(), 'Voting already stopped')
-
-        data = {'action': 'tally'}
-        response = self.client.put('/voting/{}/'.format(voting.pk), data, format='json')
-        self.assertEqual(response.status_code, 400)
-        self.assertEqual(response.json(), 'Voting already tallied')
 
     def create_candidateGroup(self):
         v = CandidatesGroup(name='test candidatesGroup')
@@ -245,28 +98,6 @@ class VotingTestCase(BaseTestCase):
         self.login()
         c = self.create_candidate()
         self.assertIsNotNone(c, 'Creating Candidate')
-    def csv_validation_primaries_test(self):
-        num_candidatos_inicial = len(Candidate.objects.all())
-
-        path = str(os.getcwd()) + "/voting/files/candidatos-test-primarias.csv"
-        file = open(path, 'rb')
-        errores_validacion = handle_uploaded_file(file)
-        lista_comprobacion = list(filter(re.compile(r'no ha pasado el proceso de primarias').search, errores_validacion))
-        print(lista_comprobacion)
-        num_candidatos_final = len(Candidate.objects.all())
-        self.assertTrue(len(lista_comprobacion) == 1 and num_candidatos_inicial == num_candidatos_final)
-    
-    
-    def csv_validation_provincias_test(self):
-        num_candidatos_inicial = len(Candidate.objects.all())
-
-        path = str(os.getcwd()) + "/voting/files/candidatos-test-provincias.csv"
-        file = open(path, 'rb')
-        errores_validacion = handle_uploaded_file(file)
-        lista_comprobacion = list(filter(re.compile(r'Tiene que haber al menos dos candidatos al congreso cuya provincia de nacimiento o de residencia tenga de código ML').search, errores_validacion))
-        print(lista_comprobacion)
-        num_candidatos_final = len(Candidate.objects.all())
-        self.assertTrue(len(lista_comprobacion) == 1 and num_candidatos_inicial == num_candidatos_final)
 
 #TEST DAVID
     def csv_validation_genres_test(self):
@@ -352,7 +183,6 @@ class VotingTestCase(BaseTestCase):
         response = c.get(reverse('copy_voting', kwargs={'voting_id':voting_id}), {'HTTP_X_REQUESTED_WITH': 'XMLHttpRequest'})
         response.user = self.login()
         num_voting_final = len(Voting.objects.all())
-        print(response.status_code)
         self.assertTrue(num_voting_inicial == num_voting_final)
         self.assertEqual(response.status_code, 404)     
 
@@ -361,21 +191,18 @@ class VotingTestCase(BaseTestCase):
 
 ##TEST MANU
     def create_voting_gobern_test(self):
-        print("Creando Votación Congreso - pass")
         v = Voting(name="Votación Gobierno 2020", desc="Votación básica")
         v.save()
 
         self.assertEqual(v.pk != 0, True)
 
     def create_voting_gobern(self):
-        print("Creando Votación Congreso - pass")
         v = Voting(name="Votación Gobierno 2020", desc="Votación básica")
         v.save()
 
         return v
     
     def create_voting_gobern_API_test(self):
-        print("Creando Votacion Congreso - API - pass")
         self.login()
         data = {'name': 'voting pass',
                 'description': 'Votacion básica API'
@@ -385,7 +212,6 @@ class VotingTestCase(BaseTestCase):
         self.assertEqual(response.status_code, 302)
 
     def create_voting_FULL_gobern_API_test(self):
-        print("Creando Votacion Completa - API - pass")
         self.login()
         auths = Auth.objects.all()
         candidatures = CandidatesGroup.objects.all()
@@ -402,7 +228,6 @@ class VotingTestCase(BaseTestCase):
         self.assertEqual(response.status_code, 302)
 
     def create_auths_API_test(self):
-        print("Creando Auth para Votacion - pass")
         self.login()
         data = {
             'auth_name': 'Auths prueba',
@@ -414,7 +239,6 @@ class VotingTestCase(BaseTestCase):
         self.assertEqual(response.status_code, 302)
 
     def create_auths_API_fail_test(self):
-        print("Creando Auth para Votacion - fail")
         self.login()
         data = {
             'auth_name': '',
@@ -426,9 +250,7 @@ class VotingTestCase(BaseTestCase):
         self.assertEqual(response.status_code, 302)
 
     def get_voting_json_API_test(self):
-        print("Seleccionando Votacion - API")
         v = self.create_voting_gobern()
-        print(v)
         id_voting = v.pk
 
         response = self.client.get('/voting/view?id='+str(id_voting))
@@ -437,82 +259,80 @@ class VotingTestCase(BaseTestCase):
 ###FIN TEST MANU
 
 
-         #TEST ANTONI0
-        def test_update_voting_start(self):        
-            voting = self.create_voting() 
+        #TEST ANTONI0
+    def test_update_voting_start(self):        
+        voting = self.create_voting() 
 
-            #Votacion empezada correctamente
-            data = {'action': 'start', 'voting_id': voting.pk}        
-            response = self.client.post('/voting/votings/update/', data, format='json')   
-            self.assertEqual(response.status_code, 302)
-
-
-        def test_update_voting_stop(self):        
-            voting = self.create_voting() 
-
-            #Votacion parada correctamente
-            data = {'action': 'start', 'voting_id': voting.pk}        
-            response = self.client.post('/voting/votings/update/', data, format='json') 
-            data = {'action': 'stop', 'voting_id': voting.pk}        
-            response = self.client.post('/voting/votings/update/', data, format='json') 
-            self.assertEqual(response.status_code, 302) 
+        #Votacion empezada correctamente
+        data = {'action': 'start', 'voting_id': voting.pk}        
+        response = self.client.post('/voting/votings/update/', data, format='json')   
+        self.assertEqual(response.status_code, 302)
 
 
-        def test_update_voting_delete(self):        
-            voting = self.create_voting()  
+    def test_update_voting_stop(self):        
+        voting = self.create_voting() 
 
-            #Votacion eliminada correctamente
-            data = {'action': 'delete', 'voting_id': voting.pk}        
-            response = self.client.post('/voting/votings/update/', data, format='json')
-            self.assertEqual(response.status_code, 302)
-
-
-        def test_update_multiple_voting_start(self):        
-            voting = self.create_voting() 
-
-            #Votacion empezada correctamente
-            data = {'action_multiple': 'start', 'array_voting_id[]': voting.pk}        
-            response = self.client.post('/voting/votings/update_selection/', data, format='json')   
-            self.assertEqual(response.status_code, 302)
+        #Votacion parada correctamente
+        data = {'action': 'start', 'voting_id': voting.pk}        
+        response = self.client.post('/voting/votings/update/', data, format='json') 
+        data = {'action': 'stop', 'voting_id': voting.pk}        
+        response = self.client.post('/voting/votings/update/', data, format='json') 
+        self.assertEqual(response.status_code, 302) 
 
 
-        def test_update_multiple_voting_stop(self):        
-            voting = self.create_voting() 
+    def test_update_voting_delete(self):        
+        voting = self.create_voting()  
 
-            #Votacion parada correctamente
-            data = {'action_multiple': 'start', 'array_voting_id[]': voting.pk}        
-            response = self.client.post('/voting/votings/update_selection/', data, format='json') 
-            data = {'action_multiple': 'stop', 'voting_id': voting.pk}        
-            response = self.client.post('/voting/votings/update_selection/', data, format='json') 
-            self.assertEqual(response.status_code, 302) 
+        #Votacion eliminada correctamente
+        data = {'action': 'delete', 'voting_id': voting.pk}        
+        response = self.client.post('/voting/votings/update/', data, format='json')
+        self.assertEqual(response.status_code, 302)
 
 
+    def test_update_multiple_voting_start(self):        
+        voting = self.create_voting() 
 
-        def test_update_multiple_voting_delete(self):        
-            voting = self.create_voting()  
+        #Votacion empezada correctamente
+        data = {'action_multiple': 'start', 'array_voting_id[]': voting.pk}        
+        response = self.client.post('/voting/votings/update_selection/', data, format='json')   
+        self.assertEqual(response.status_code, 302)
 
-            #Votacion eliminada correctamente
-            data = {'action': 'delete', 'array_voting_id[]': voting.pk}        
-            response = self.client.post('/voting/votings/update_selection/', data, format='json')
-            self.assertEqual(response.status_code, 302)
 
-        #################################################
+    def test_update_multiple_voting_stop(self):        
+        voting = self.create_voting() 
 
-class TestSignup(unittest.TestCase):
+        #Votacion parada correctamente
+        data = {'action_multiple': 'start', 'array_voting_id[]': voting.pk}        
+        response = self.client.post('/voting/votings/update_selection/', data, format='json') 
+        data = {'action_multiple': 'stop', 'voting_id': voting.pk}        
+        response = self.client.post('/voting/votings/update_selection/', data, format='json') 
+        self.assertEqual(response.status_code, 302) 
 
-    def setUp(self):
-        self.driver = webdriver.Firefox()
+
+
+    def test_update_multiple_voting_delete(self):        
+        voting = self.create_voting()  
+
+        #Votacion eliminada correctamente
+        data = {'action': 'delete', 'array_voting_id[]': voting.pk}        
+        response = self.client.post('/voting/votings/update_selection/', data, format='json')
+        self.assertEqual(response.status_code, 302)
+
+        ################################################
+
+# class TestSignup(unittest.TestCase):
+
+#     def setUp(self):
+#         self.driver = webdriver.Firefox()
         
-    def test_custom_url(self):
-        self.driver.get("http://localhost:8000/admin/login/?next=/admin/")
-        # TODO
-        self.driver.find_element_by_id('id_username').send_keys("practica")
-        self.driver.find_element_by_id('id_password').send_keys("practica")
-        #self.driver.find_element_by_id('login-form').click()
-        #self.assertTrue(len(self.driver.find_elements_by_id('user-tools'))>0) 
+#     def test_custom_url(self):
+#         self.driver.get("http://localhost:8000/admin/login/?next=/admin/")
+#         self.driver.find_element_by_id('id_username').send_keys("practica")
+#         self.driver.find_element_by_id('id_password').send_keys("practica")
+        
     
-    def tearDown(self):
-        self.driver.quit
+#     def tearDown(self):
+#         self.driver.quit
 
-if __name__ == '__main__':
-    unittest.main()
+# if __name__ == '__main__':
+#     unittest.main()
