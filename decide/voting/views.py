@@ -69,7 +69,7 @@ def voting_edit(request):
 
         if form.is_valid:
             candidatures = request.POST.getlist("candidatures")
-            voting = Voting(name=votingName, desc=votingDescription, start_date_selected=start_date_selected, end_date_selected=end_date_selected)
+            voting = Voting(name=votingName, desc=votingDescription, custom_url=custom_url, start_date_selected=start_date_selected, end_date_selected=end_date_selected)
                     #candidatures=request.data.get('candidatures'))
                     #question=question)
             
