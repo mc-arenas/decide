@@ -57,7 +57,10 @@ def voting_edit(request):
         start_date_selected = request.POST["start_date_selected"]
         end_date_selected = request.POST["end_date_selected"]
         custom_url = request.POST["custom_url"]
-
+        if start_date_selected == "":
+            start_date_selected = None
+        if end_date_selected == "":
+            end_date_selected = None
         
         permission_classes = (UserIsStaff,)
         #for data in ['name', 'desc', 'candidatures']:
