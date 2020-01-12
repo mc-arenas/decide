@@ -337,6 +337,7 @@ class VotingTestCase(BaseTestCase):
         count_errors = http_content.count('El candidato Antonio no ha pasado el proceso de primarias')
         num_candidatos_final = len(Candidate.objects.all())
         self.assertTrue(count_errors == 1 and num_candidatos_inicial == num_candidatos_final)
+        self.assertEqual(response.status_code, 301)
     
     
     def csv_validation_provincias_test(self):
