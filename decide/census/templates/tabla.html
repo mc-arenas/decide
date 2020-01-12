@@ -1,0 +1,56 @@
+{% extends 'main.html' %}
+
+{% block contenido %} 
+<script>
+	function handleMenuAction(evt, e) {
+		switch (evt) {
+      case "delete":
+        var confirmar = confirm("¿Desea elminar este Censo?");
+        if(confirmar){
+          window.location.href = "/census/web/delete/" + e.parentElement.getAttribute("id");
+        }
+        break;
+    }
+	}
+</script>
+
+<ul class="jctx jctx-id-foo jctx-white jctx-black-shadow">
+	<li data-action="delete" class="eliminar">Eliminar</li>
+	<li data-action="" class="disabled">Modificar</li>
+</ul>
+
+<table style = "background-color: #fff">
+    <tr>
+      <th>Nombre</th>
+      <th>Apellido</th>
+      <th>Edad</th>
+      <th>Sexo</th>
+      <th>Municipio</th>
+      <th>Votacion</th>
+    </tr>
+    {% for dato in datos %}
+    <tr class="jctx-host jctx-id-foo" id="{{dato.2}}">
+      <td>{{dato.0.first_name}}</td>
+      <td>{{dato.0.last_name}}</td>
+      <td>{{dato.0.edad}}</td>
+      <td>{{dato.0.sexo}}</td>
+      <td>{{dato.0.municipio}}</td>
+      <td><a href="/census/web/{{dato.1.pk}}">{{dato.1}}</a></td>
+    </tr>
+    {% endfor %}
+  </table>
+  <div class="border-top my-3"></div>
+
+{% if dist|length > 0 %}
+
+<form method="POST" action="/census/web/add/"> {% csrf_token %}
+    <select name="votacion_id" id="select-voting" required>
+        {% for d in dist %}
+            <option name="voting-selected" value="{{d.0.pk}}">{{d.1.name}}</option>
+        {% endfor %}
+    </select>
+    <input type="submit" value="Ir al censo">
+</form>
+{% endif %}
+
+{% endblock %}

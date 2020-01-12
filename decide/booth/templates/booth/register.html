@@ -1,0 +1,116 @@
+{% extends 'booth/block.html' %}
+{% load i18n static %}
+{% block content %}
+<div class="signup-form">	
+
+	{% if lenErrors > 0 %}
+        <div class="alert alert-danger" role="alert">
+		{% for x in errors %}
+			{% if x == -1 %}
+				{% for field in form %}
+					{% for error in field.errors %}
+						{{ error }}
+					{% endfor %}
+				{% endfor %}
+			{% endif %}
+
+            {% if x == 0 %}
+				{% trans "El nombre no puede estar vacío" %}
+			{% endif %}
+
+			{% if x == 1 %}
+				{% trans "El apellido no puede estar vacío" %}
+			{% endif %}
+
+			{% if x == 2 %}
+				{% trans "Las contraseñas deben coincidir" %}
+			{% endif %}
+
+            {% if x == 3 %}
+				{% trans "El email no puede estar vacío" %}
+			{% endif %}
+
+			{% if x == 4 %}
+				{% trans "La edad debe ser un número / no debe estar vacía" %}
+            {% endif %}
+
+        {% endfor %}
+        </div>
+	{% endif %}
+    <form id="login-form" class="form" action="" method="post">
+        {% csrf_token %}
+
+		<h2>{% trans "Crear Cuenta" %}</h2>
+		<div class="form-group">
+			<div class="input-group">
+				<span class="input-group-addon"><i class="fa fa-user"></i></span>
+				<input type="text" class="form-control" name="first_name" placeholder="{% trans "Nombre" %}" value="{{ form.first_name.value }}">
+			</div>
+		</div>
+		<div class="form-group">
+			<div class="input-group">
+				<span class="input-group-addon"><i class="fa fa-user"></i></span>
+				<input type="text" class="form-control" name="last_name" placeholder="{% trans "Apellido" %}" value="{{ form.last_name.value }}">
+			</div>
+        </div>
+        <div class="form-group">
+			<div class="input-group">
+				<span class="input-group-addon"><i class="fa fa-user"></i></span>
+				<input type="text" class="form-control" name="username" placeholder="{% trans "Nombre de usuario" %}" value="{{ form.username.value }}">
+			</div>
+        </div>
+        <div class="form-group">
+			<div class="input-group">
+				<span class="input-group-addon"><i class="fa fa-paper-plane"></i></span>
+				<input type="email" class="form-control" name="email" placeholder="{% trans "Email" %}" value="{{ form.email.value }}">
+			</div>
+		</div>
+		<div class="form-group">
+			<div class="input-group">
+				<span class="input-group-addon"><i class="fa fa-paper-plane"></i></span>
+				<input type="number" class="form-control" name="edad" placeholder="{% trans "Edad" %}" value="{{ form.edad.value }}">
+			</div>
+		</div>
+		<div class="form-group">
+			<div class="input-group">
+				<span class="input-group-addon"><i class="fa fa-paper-plane"></i></span>
+				<select name="sexo">
+					<option value="M">{% trans "Mujer" %}</option>
+					<option value="H">{% trans "Hombre" %}</option>
+				</select>
+			</div>
+		</div>
+		<div class="form-group">
+			<div class="input-group">
+				<span class="input-group-addon"><i class="fa fa-paper-plane"></i></span>
+				<input type="text" class="form-control" name="provincia" placeholder="{% trans "Provincia" %}" value="{{ form.provincia.value }}">
+			</div>
+		</div>
+		<div class="form-group">
+			<div class="input-group">
+				<span class="input-group-addon"><i class="fa fa-paper-plane"></i></span>
+				<input type="text" class="form-control" name="municipio" placeholder="{% trans "Municipio" %}" value="{{ form.municipio.value }}">
+			</div>
+		</div>
+		<div class="form-group">
+			<div class="input-group">
+				<span class="input-group-addon"><i class="fa fa-lock"></i></span>
+				<input type="password" class="form-control" name="password" placeholder="{% trans "Contraseña" %}">
+			</div>
+        </div>
+		<div class="form-group">
+			<div class="input-group">
+				<span class="input-group-addon">
+					<i class="fa fa-lock"></i>
+					<i class="fa fa-check"></i>
+				</span>
+				<input type="password" class="form-control" name="confirm_password" placeholder="{% trans "Confirmar contraseña" %}">
+			</div>
+        </div>        
+		<div class="form-group">
+            <button type="submit" class="btn btn-primary btn-block">{% trans "Registrarse" %}</button>
+        </div>
+    </form>
+	<div class="text-center">{% trans "¿Ya tienes una cuenta?" %} <a href="/login/">{% trans "Inicia sesion" %}</a></div>
+</div>
+{% endblock %}

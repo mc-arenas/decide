@@ -9,8 +9,7 @@ anonimicidad y el secreto del voto.
 
 Se trata de un proyecto educativo, pensado para el estudio de sistemas de
 votación, por lo que prima la simplicidad por encima de la eficiencia
-cuando sea posible. Por lo tanto se asumen algunas carencias para permitir
-que sea entendible y extensible.
+cuando sea posible.
 
 
 Subsistemas, apps y proyecto base
@@ -290,3 +289,4 @@ A tener en cuenta:
   concurrentes, cuando pongamos más de 100, lo normal es que empiecen a fallar muchas peticiones.
 * Si hacemos las pruebas en local, donde tenemos activado el modo debug de Django, lo normal es que
   las peticiones tarden algo más y consigamos menos RPS (Peticiones por segundo).
+
