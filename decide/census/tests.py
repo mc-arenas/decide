@@ -160,3 +160,39 @@ class CensusTestCase(BaseTestCase):
         self.login()
         response = self.client.post('/census/web/export_xlsx', data, format='json')
         self.assertEqual(response.status_code, 302)
+
+    def test_census_export_csv(self):
+        data = {'voting_id': 2, 'voters': [1, 2, 3, 4]}
+        self.login()
+        response = self.client.post('/census/', data, format='json')
+        self.assertEqual(response.status_code, 201)
+
+        self.logout()
+        response = self.client.post('/census/web/export_csv', data, format='json')
+        self.assertNotEqual(response.status_code, 201)
+
+        self.login(user='noadmin')
+        response = self.client.post('/census/web/export_csv', data, format='json')
+        self.assertNotEqual(response.status_code, 201)
+
+        self.login()
+        response = self.client.post('/census/web/export_csv', data, format='json')
+        self.assertEqual(response.status_code, 302)
+
+    def test_census_export_pdf(self):
+        data = {'voting_id': 2, 'voters': [1, 2, 3, 4]}
+        self.login()
+        response = self.client.post('/census/', data, format='json')
+        self.assertEqual(response.status_code, 201)
+
+        self.logout()
+        response = self.client.post('/census/web/export_pdf', data, format='json')
+        self.assertNotEqual(response.status_code, 201)
+
+        self.login(user='noadmin')
+        response = self.client.post('/census/web/export_pdf', data, format='json')
+        self.assertNotEqual(response.status_code, 201)
+
+        self.login()
+        response = self.client.post('/census/web/export_pdf', data, format='json')
+        self.assertEqual(response.status_code, 302)
