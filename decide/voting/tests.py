@@ -79,7 +79,7 @@ class VotingTestCase(BaseTestCase):
         user.set_password('qwerty')
         user.save()
         return user
-
+## TESTS ANGEL
     def create_candidateGroup(self):
         v = CandidatesGroup(name='test candidatesGroup')
         v.save()
@@ -99,6 +99,8 @@ class VotingTestCase(BaseTestCase):
         self.login()
         c = self.create_candidate()
         self.assertIsNotNone(c, 'Creating Candidate')
+
+## FIN TESTS ANGEL
 
 #TEST DAVID
     def csv_validation_genres_test(self):
@@ -258,28 +260,7 @@ class VotingTestCase(BaseTestCase):
         self.assertEqual(response.status_code, 302)
 
 ###FIN TEST MANU
-    
-    def test_custom_url_by_id(self):
-        
-        self.login()
-        c= self.create_candidateGroup()
-        v = self.create_voting_gobern()
-        v.candidatures.add(c)
-        
-        response = self.client.get('/voting/show/'+str(v.id))
 
-        self.assertEqual(response.status_code, 301)
-    
-    def test_custom_url_by_alias(self):
-        
-        self.login()
-        c= self.create_candidateGroup()
-        v = self.create_voting_gobern()
-        v.custom_url = 'voting1'
-        v.save()
-        v.candidatures.add(c)
-        
-        response = self.client.get('/voting/show/'+str(v.custom_url))
 
         #TEST ANTONI0
     def test_update_voting_start(self):        
@@ -356,16 +337,6 @@ class VotingTestCase(BaseTestCase):
         count_errors = http_content.count('El candidato Antonio no ha pasado el proceso de primarias')
         num_candidatos_final = len(Candidate.objects.all())
         self.assertTrue(count_errors == 1 and num_candidatos_inicial == num_candidatos_final)
-        self.assertEqual(response.status_code, 301)
-    
-    def test_custom_url_by_id_none(self):
-        self.login()
-        
-        c = Client()
-        response = c.get(reverse('show voting', kwargs={'voting': 9999999}), {'HTTP_X_REQUESTED_WITH': 'XMLHttpRequest'})
-        response.user = self.login()
-
-        self.assertEqual(response.status_code, 404)
     
     
     def csv_validation_provincias_test(self):
@@ -448,6 +419,40 @@ class VotingTestCase(BaseTestCase):
 # if __name__ == '__main__':
 #     unittest.main()
 
+## TESTS ANGEL
+    def test_custom_url_by_id(self):
+        
+        self.login()
+        c= self.create_candidateGroup()
+        v = self.create_voting_gobern()
+        v.candidatures.add(c)
+        
+        response = self.client.get('/voting/show/'+str(v.id))
+
+        self.assertEqual(response.status_code, 301)
+    
+    def test_custom_url_by_alias(self):
+        
+        self.login()
+        c= self.create_candidateGroup()
+        v = self.create_voting_gobern()
+        v.custom_url = 'voting1'
+        v.save()
+        v.candidatures.add(c)
+        
+        response = self.client.get('/voting/show/'+str(v.custom_url))
+
+        self.assertEqual(response.status_code, 301)
+    
+    def test_custom_url_by_id_none(self):
+        self.login()
+        
+        c = Client()
+        response = c.get(reverse('show voting', kwargs={'voting': 9999999}), {'HTTP_X_REQUESTED_WITH': 'XMLHttpRequest'})
+        response.user = self.login()
+
+        self.assertEqual(response.status_code, 404)
+    
     def test_custom_url_by_alias_none(self):
         
         self.login()
@@ -455,6 +460,4 @@ class VotingTestCase(BaseTestCase):
         c = Client()
         response = c.get(reverse('show voting', kwargs={'voting':'esto-es-una-url'}), {'HTTP_X_REQUESTED_WITH': 'XMLHttpRequest'})
         response.user = self.login()
-        print(response)
-        print(response.status_code)
         self.assertEqual(response.status_code, 404)
