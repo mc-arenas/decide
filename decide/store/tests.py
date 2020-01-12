@@ -13,13 +13,13 @@ from base.models import Auth
 from base.tests import BaseTestCase
 from census.models import Census
 from mixnet.models import Key
-from voting.models import Question
+#from voting.models import Question
 from voting.models import Voting
 
 
 class StoreTextCase(BaseTestCase):
 
-    def setUp(self):
+    """def setUp(self):
         super().setUp()
         self.question = Question(desc='qwerty')
         self.question.save()
@@ -28,15 +28,15 @@ class StoreTextCase(BaseTestCase):
                              question=self.question,
                              start_date=timezone.now(),
         )
-        self.voting.save()
+        self.voting.save()"""
 
     def tearDown(self):
         super().tearDown()
 
-    def gen_voting(self, pk):
+    """def gen_voting(self, pk):
         voting = Voting(pk=pk, name='v1', question=self.question, start_date=timezone.now(),
                 end_date=timezone.now() + datetime.timedelta(days=1))
-        voting.save()
+        voting.save()"""
 
     def get_or_create_user(self, pk):
         user, _ = User.objects.get_or_create(pk=pk)
