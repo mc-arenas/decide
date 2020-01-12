@@ -8,6 +8,7 @@ from django.core.exceptions import ObjectDoesNotExist
 from rest_framework import generics
 from rest_framework.response import Response
 from django.shortcuts import get_object_or_404
+from django.contrib.admin.views.decorators import staff_member_required
 from rest_framework.status import (
     HTTP_201_CREATED as ST_201,
     HTTP_204_NO_CONTENT as ST_204,
@@ -65,7 +66,7 @@ class CensusDetail(generics.RetrieveDestroyAPIView):
             return Response('Invalid voter', status=ST_401)
         return Response('Valid voter')
 
-
+@staff_member_required
 def listaVotantes(request, voting_id):
     census = list(Census.objects.filter(voting_id=voting_id))
     datos = []
@@ -76,7 +77,7 @@ def listaVotantes(request, voting_id):
         datos.append(tupla)
     return render(request, 'tabla.html', {'datos': datos, 'voting_id': voting_id, 'STATIC_URL': settings.STATIC_URL})
 
-
+@staff_member_required
 def listaCensos(request):
     census = list(Census.objects.all())
     datos = []
@@ -85,13 +86,24 @@ def listaCensos(request):
         votacion = list(Voting.objects.filter(pk=c.voting_id))[0]
         tupla = (user, votacion, c.pk)
         datos.append(tupla)
-    return render(request, 'tabla.html', {'datos': datos, 'STATIC_URL': settings.STATIC_URL})
 
+    dist_pk = Voting.objects.values('pk').distinct()
+    dist_name = Voting.objects.values('name').distinct()
 
+    dist = []
+    for counter, pk in enumerate(dist_pk):
+        tupla = (pk, dist_name[counter])
+        dist.append(tupla)
+
+    return render(request, 'tabla.html', {'datos': datos, 'dist': dist, 'STATIC_URL': settings.STATIC_URL})
+
+@staff_member_required
 def export_csv(request):
     voting_id = request.GET.get('voting_id')
-    if request.GET.get('voting_id') is not None:
-        voting_id = request.GET.get('voting_id')
+    if voting_id is '':
+        voting_id = -1
+
+    if voting_id is not None:
         census = list(Census.objects.filter(voting_id=voting_id))
         datos = []
         for c in census:
@@ -111,7 +123,7 @@ def export_csv(request):
         sheet = ExportToCsv(datos)
     return excel.make_response(sheet, "csv", file_name="census_data.csv")
 
-
+@staff_member_required
 def ExportToCsv(datos):
     export = []
     export.append([
@@ -125,15 +137,20 @@ def ExportToCsv(datos):
     for dato in datos:
         if hasattr(dato[0], 'perfil'):
             export.append(
-                [dato[0].first_name, dato[0].last_name, dato[0].perfil.edad, dato[0].perfil.sexo, dato[0].perfil.municipio,
+                [dato[0].first_name, dato[0].last_name, dato[0].perfil.edad, dato[0].perfil.sexo,
+                 dato[0].perfil.municipio,
                  str("/census/web/" + str(dato[1].pk))])
 
     sheet = excel.pe.Sheet(export)
 
     return sheet
 
+@staff_member_required
 def export_excel(request):
     voting_id = request.GET.get('voting_id')
+    if voting_id is '':
+        voting_id = -1
+
     census = list(Census.objects.all())
     data = []
 
@@ -150,7 +167,7 @@ def export_excel(request):
 
     return excel.make_response(template, "xlsx", file_name="census_data.xlsx")
 
-
+@staff_member_required
 def export_to_xlsx(data):
     export = [[
         'Nombre',
@@ -170,14 +187,18 @@ def export_to_xlsx(data):
 
     return template
 
-
-def addCensus(request, votacionID):
+@staff_member_required
+def addCensus(request):
     id = request.POST.get("id")
-    votacion = get_object_or_404(Voting, pk=votacionID)
+    votacion_id = request.POST.get("votacion_id")
+    votacion = get_object_or_404(Voting, pk=votacion_id)
     tipo = request.POST.get("tipo")
     if tipo == "usuario":
         usuario = get_object_or_404(User, pk=id)
-        Census.objects.create(voter_id=usuario.pk, voting_id=votacion.pk)
+        try:
+            Census.objects.create(voter_id=usuario.pk, voting_id=votacion.pk)
+        except:
+            pass
 
     elif tipo == "votacion":
         votacion2 = get_object_or_404(Voting, pk=id)
@@ -187,19 +208,22 @@ def addCensus(request, votacionID):
                 Census.objects.create(voting_id=votacion.pk, voter_id=c.voter_id)
             except:
                 pass
-        
+
     usuarios = User.objects.all()
     votaciones = Voting.objects.all().exclude(pk=votacion.pk)
     census = list(Census.objects.filter(voting_id=votacion.pk))
     datos = []
     for c in census:
         u = list(User.objects.filter(pk=c.voter_id))[0]
-        v= list(Voting.objects.filter(pk=c.voting_id))[0]
+        v = list(Voting.objects.filter(pk=c.voting_id))[0]
         tupla = (u, v)
         datos.append(tupla)
-    
-    return render(request, 'add.html', {'datos': datos, 'usuarios':usuarios, 'votaciones':votaciones,'STATIC_URL': settings.STATIC_URL})
 
+    return render(request, 'add.html',
+                  {'datos': datos, 'usuarios': usuarios, 'votaciones': votaciones, 'vot_id': votacion_id,
+                   'STATIC_URL': settings.STATIC_URL})
+
+@staff_member_required
 def exportToPdf(request):
     if request.GET.get('voting_id') is not None:
         voting_id = request.GET.get('voting_id')
@@ -225,6 +249,7 @@ def exportToPdf(request):
     response['Content-Disposition'] = 'attachment; filename="census_data.pdf"'
     return response
 
+@staff_member_required
 def generatePdf(datos):
     buff = io.BytesIO()
     doc = SimpleDocTemplate(buff, pagesize=A4, rightMargin=50, leftMargin=50, topMargin=60, bottomMargin=18)
@@ -253,6 +278,7 @@ def generatePdf(datos):
     response['Content-Disposition'] = 'attachment; filename="census_data.pdf"'
     return buff
 
+@staff_member_required
 def eliminaCenso(request, census_id):
     census = get_object_or_404(Census, pk=census_id)
     census.delete()
