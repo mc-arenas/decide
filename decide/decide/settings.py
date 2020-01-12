@@ -71,6 +71,7 @@ MODULES = [
     'voting',
 ]
 
+
 BASEURL = 'https://despliegueegc.herokuapp.com'
 
 APIS = {
